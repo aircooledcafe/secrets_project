@@ -5,7 +5,9 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 const md5 = require("md5");
+const bcrypt = require("bcrypt");
 
+const saltRounds = 10;
 const app = express();
 
 app.use(express.static("public"));
@@ -34,36 +36,41 @@ app.get("/register", function(req, res){
 });
 
 app.post("/register", function(req, res){
-  const newUser = new User ({
-    email: req.body.username,
-    password: md5(req.body.password)
-  });
-  newUser.save(function (err){
-    if (err) {
-      console.log(err);
-    } else {
-      res.render("secrets");
-      console.log("New user added succesfully.");
-    }
-  });
+  bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+    const newUser = new User ({
+      email: req.body.username,
+      password: hash
+    });
+    newUser.save(function (err){
+      if (err) {
+        console.log(err);
+      } else {
+        res.render("secrets");
+        console.log("New user added succesfully.");
+      }
+    });
+});
+
+
+  
 });
 
 app.post("/login", function(req, res){
   const loginUser = req.body.username;
-  const loginPassword = md5(req.body.password);
+  const loginPassword = req.body.password;
   User.findOne({email: loginUser}, function(err, foundUser){
     if (err) {
       console.log(err);
-    } else if (foundUser) {
-        if (loginPassword === foundUser.password) {
-          res.render("secrets");
-          console.log("Success.");
-        } else {
-          console.log("Password does not match");
+    } else {
+      if (foundUser) {
+      bcrypt.compare(loginPassword, foundUser.password, function(err, result) {
+        if (result === true) {
+        res.render("secrets");
+        console.log("Success.");
         }
-      } else {
-        console.log("No user found with that email address.");
-      }
+    });
+  }
+  }
   });
 });
 
